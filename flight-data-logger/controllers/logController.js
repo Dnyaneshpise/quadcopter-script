@@ -2,10 +2,8 @@ const Log = require("../models/Log");
 const cloudinary = require("../config/cloudinary");
 const { Parser } = require("json2csv");
 const multer = require("multer");
+const moment = require("moment"); 
 
-const moment = require("moment");
-
-// Configure multer for file uploads
 const upload = multer({ dest: "uploads/" }).single("file");
 
 // Upload log file
@@ -13,9 +11,7 @@ exports.uploadLog = async (req, res) => {
   try {
     upload(req, res, async (err) => {
       if (err) {
-        return res
-          .status(400)
-          .json({ message: "File upload failed", error: err.message });
+        return res.status(400).json({ message: "File upload failed", error: err.message });
       }
 
       const file = req.file;
@@ -35,9 +31,7 @@ exports.uploadLog = async (req, res) => {
       });
 
       await newLog.save();
-      res
-        .status(201)
-        .json({ message: "Log uploaded successfully", log: newLog });
+      res.status(201).json({ message: "Log uploaded successfully", log: newLog });
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -57,10 +51,7 @@ exports.getLogs = async (req, res) => {
 // Get log by ID
 exports.getLogById = async (req, res) => {
   try {
-    const log = await Log.findById(req.params.id).populate(
-      "user",
-      "name email"
-    );
+    const log = await Log.findById(req.params.id).populate("user", "name email");
 
     if (!log) {
       return res.status(404).json({ message: "Log not found" });
@@ -76,12 +67,11 @@ exports.getLogById = async (req, res) => {
   }
 };
 
-// Get logs by date
-// controllers/logController.js
-
+// Get logs by date with pagination
 exports.getLogsByDate = async (req, res) => {
   try {
     const dateParam = req.params.date;
+    const { page = 1, limit = 10 } = req.query; // Default to page 1, 10 logs per page
 
     // Validate date format using moment.js
     if (!moment(dateParam, "YYYY-MM-DD", true).isValid()) {
@@ -89,19 +79,32 @@ exports.getLogsByDate = async (req, res) => {
     }
 
     const date = new Date(dateParam);
-    const logs = await Log.find({
+    const query = {
       user: req.user.id,
       date: {
-        $gte: new Date(date.setHours(0, 0, 0, 0)),
-        $lt: new Date(date.setHours(23, 59, 59, 999)),
+        $gte: new Date(date.setHours(0, 0, 0, 0)), // Start of day (00:00:00)
+        $lt: new Date(date.setHours(23, 59, 59, 999)), // End of day (23:59:59)
       },
-    }).populate("user", "name email");
+    };
 
-    res.status(200).json({ logs });
+    const logs = await Log.find(query)
+      .populate("user", "name email")
+      .skip((page - 1) * limit) // Skip logs for previous pages
+      .limit(parseInt(limit)); // Limit the number of logs per page
+
+    const totalLogs = await Log.countDocuments(query); // Get total logs for pagination
+
+    res.status(200).json({
+      logs,
+      totalPages: Math.ceil(totalLogs / limit), // Total pages
+      currentPage: parseInt(page), // Current page
+      totalLogs, // Total logs matching the query
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 // Export log
 exports.exportLog = async (req, res) => {
   try {
