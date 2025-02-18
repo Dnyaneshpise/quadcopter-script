@@ -19,7 +19,7 @@ This is the API documentation for the **Flight Data Logger** project. The API al
 ## Base URL
 The base URL for all endpoints is:
 ```
-https://quadcopter-log-api.onrender.com/api
+https://quadcopter-log-api.onrender.com/
 ```
 
 ---
