@@ -142,3 +142,31 @@ exports.exportLog = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// controllers/logController.js
+exports.analyzeLog = async (req, res) => {
+  try {
+    const log = await Log.findById(req.params.id).populate("user", "name email");
+
+    if (!log) {
+      return res.status(404).json({ message: "Log not found" });
+    }
+
+    // Authorization: Only log owner or admin can analyze logs
+    if (log.user._id.toString() !== req.user.id && req.user.role !== "admin") {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Example analysis (replace with actual logic)
+    const analysis = {
+      duration: "2 hours",
+      maxAltitude: "1500 meters",
+      flightPath: "GPS coordinates here",
+      anomalies: "No anomalies detected",
+    };
+
+    res.status(200).json({ analysis });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
