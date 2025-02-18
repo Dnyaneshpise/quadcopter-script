@@ -9,6 +9,7 @@ const logRoutes = require("./routes/logRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const path = require("path");
 const fs = require("fs");
+const { marked } = require("marked");
 
 dotenv.config();
 connectDB();
@@ -35,7 +36,38 @@ app.get("/api/docs", (req, res) => {
     if (err) {
       return res.status(500).send("Error reading documentation file.");
     }
-    res.send(data);
+    const htmlContent = marked(data);
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>API Documentation</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/4.0.0/github-markdown.min.css">
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+          }
+          .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 45px;
+          }
+        </style>
+      </head>
+      <body>
+        <article class="markdown-body">
+          ${htmlContent}
+        </article>
+      </body>
+      </html>
+    `);
   });
 });
 
