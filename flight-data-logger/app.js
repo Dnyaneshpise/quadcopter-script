@@ -25,7 +25,8 @@ app.use("/api/admin", adminRoutes);
 
 // Home route
 app.get("/api", (req, res) => {
-    res.send("Welcome to the Log Saver API!");
+    res.send(`Welcome to the Log Saver API!
+      \n\nSee the complete docs at /api/docs or visit the GitHub repository at https://github.com/Dnyaneshpise/quadcopter-script`);
 });
 
 // API Documentation route
