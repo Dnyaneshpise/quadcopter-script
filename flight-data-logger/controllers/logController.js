@@ -9,31 +9,40 @@ const upload = multer({ dest: "uploads/" }).single("file");
 // Upload log file
 exports.uploadLog = async (req, res) => {
   try {
-    upload(req, res, async (err) => {
-      if (err) {
-        return res.status(400).json({ message: "File upload failed", error: err.message });
-      }
-
-      const file = req.file;
-      if (!file) {
-        return res.status(400).json({ message: "No file uploaded" });
-      }
-
-      const result = await cloudinary.uploader.upload(file.path, {
-        resource_type: "auto",
-        folder: "flight-logs",
+    await new Promise((resolve, reject) => {
+      upload(req, res, (err) => {
+        if (err) return reject(err);
+        resolve();
       });
-
-      const newLog = new Log({
-        user: req.user.id,
-        file: result.secure_url,
-        metadata: req.body.metadata ? JSON.parse(req.body.metadata) : {},
-      });
-
-      await newLog.save();
-      res.status(201).json({ message: "Log uploaded successfully", log: newLog });
     });
+
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    let result;
+try {
+  result = await cloudinary.uploader.upload(file.path, {
+    resource_type: "auto",
+    folder: "flight-logs",
+  });
+} catch (uploadError) {
+  console.error("Cloudinary upload error:", uploadError); // Logs error for debugging
+  return res.status(500).json({ message: "Cloud upload failed" });
+}
+
+
+    const newLog = new Log({
+      user: req.user.id,
+      file: result.secure_url,
+      metadata: req.body.metadata ? JSON.parse(req.body.metadata) : {},
+    });
+
+    await newLog.save();
+    res.status(201).json({ message: "Log uploaded successfully", log: newLog });
   } catch (error) {
+    console.error("Error in uploadLog:", error); // Debugging
     res.status(500).json({ message: error.message });
   }
 };
@@ -74,16 +83,16 @@ exports.getLogsByDate = async (req, res) => {
     const { page = 1, limit = 10 } = req.query; // Default to page 1, 10 logs per page
 
     // Validate date format using moment.js
-    if (!moment(dateParam, "YYYY-MM-DD", true).isValid()) {
+    const date = moment(dateParam, "YYYY-MM-DD", true);
+    if (!date.isValid()) {
       return res.status(400).json({ message: "Invalid date format. Use YYYY-MM-DD." });
     }
 
-    const date = new Date(dateParam);
     const query = {
       user: req.user.id,
       date: {
-        $gte: new Date(date.setHours(0, 0, 0, 0)), // Start of day (00:00:00)
-        $lt: new Date(date.setHours(23, 59, 59, 999)), // End of day (23:59:59)
+        $gte: date.startOf("day").toDate(), // Start of the day (00:00:00)
+        $lt: date.endOf("day").toDate(), // End of the day (23:59:59)
       },
     };
 
@@ -104,6 +113,7 @@ exports.getLogsByDate = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // Export log
 exports.exportLog = async (req, res) => {
